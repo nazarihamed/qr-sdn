@@ -198,7 +198,7 @@ def learning_module(pipe, ):
                         average_latency_list.clear()
                         # added by maria for average bandwidth 6/13/2022
                         average_bw_list.clear()
-                        # normalized_average_latency_list.clear() # HAMED June 27, for normalization
+                        
 
                 if reset_iteration_flag:
                     save_q(Q, iterations_level)
@@ -261,7 +261,6 @@ def learning_module(pipe, ):
                             average_latency_list.clear()
                             # added by maria for average bandwidth 6/13/2022
                             average_bw_list.clear()
-                            # normalized_average_latency_list.clear() # HAMED June 27, for normalization
 
 
                         # calculate the rewards
@@ -275,12 +274,6 @@ def learning_module(pipe, ):
 
                         # HAMED: original code is commented
                         average_latency_list.append(get_average_latency(current_combination, latencydict))
-
-                        # Added by Hamed June 27, to add normalized average latency values
-                        # list1, list2=get_average_latency(current_combination, latencydict)
-                        # average_latency_list.append(list1)
-                        # normalized_average_latency_list.append(list2)
-
 
 
                         # Added by maria for saving avg bandwidth
@@ -378,7 +371,6 @@ def learning_module(pipe, ):
                                 average_latency_list.clear()
                                 #Added by Maria for avg bandwidth
                                 average_bw_list.clear()
-                                # normalized_average_latency_list.clear() # HAMED: June 27, normalized latency list
                                 
 
                             # saving the q-table (for DEBUG or to approximate agent actions)
@@ -476,18 +468,8 @@ def get_average_latency(current_path_combination, latency_dict):
 """
    
     latency_list = get_costs_of_paths(current_path_combination, latency_dict)
-    
-    # print("============================================")
-    # print(f"latency list {latency_list}")
-    # print(f"latency list len {len(latency_list)}")
-    # print(f"average latency list {normalized_latency_list}")
-    # print(f"latency list len {len(normalized_latency_list)}")
-    # print("============================================")
-    
     cost = 0
-    normalized_cost = 0
     
-    # commented by Hamed on June 27, for modifying to enable normalization for avg latency, referring to the code below 
     for element in latency_list:
         cost += element
     avg_lat = cost / len(latency_list)
@@ -548,7 +530,7 @@ def get_costs_of_paths(current_path_combination, latency_dict):
     """
     value_list = []
     for path in current_path_combination:
-        cost, normalized_cost = get_path_cost(latency_dict, current_path_combination[path])
+        cost = get_path_cost(latency_dict, current_path_combination[path])
         value_list.append(cost)
 
     return value_list
@@ -1040,7 +1022,6 @@ def get_path_cost(latency_dict, path):
     @return:
     """
     cost = 0
-    normalized_cost=0
     for i in range(len(path) - 1):
         cost += get_link_cost(latency_dict, path[i], path[i + 1])
     return cost
