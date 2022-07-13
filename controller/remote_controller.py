@@ -1,3 +1,4 @@
+from distutils.command.config import config
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -11,6 +12,7 @@ from ryu.app.wsgi import ControllerBase
 from ryu.app.wsgi import Response
 from ryu.app.wsgi import route
 from ryu.app.wsgi import WSGIApplication
+from ryu.topology.api import get_link
 
 from enum import Enum
 from multiprocessing import Process, Pipe
@@ -120,6 +122,9 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
 
         self.latency_dict = {}
         self.bandwith_port_dict = {}
+        # Added by Hamed Jun,8,2022
+        self.bandwith_srcid_dstid_port_dict = {}
+
         self.bandwith_flow_dict = {}
         self.best_route_rl = []
 
@@ -181,6 +186,10 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
 
         self.dpidToDatapath[dpid] = datapath
         self.last_arrived_package[dpid] = {}
+
+        # Added By Hamed Jun 11, 2022 for calculating per port bandwidth consumption
+        self.bandwith_srcid_dstid_port_dict[dpid]={}
+
         # ggf max BW abfragen / phys. mgl.
         #  starting the monitoring elements
         #  echo_request
@@ -244,7 +253,10 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                 if lat_measurements_flag or self.iteration_flag or self.reset_flag:
                     sending_dict = {'currentCombination': self.chosen_path_per_flow,
                                     'paths_per_flow': self.paths_per_flows,
-                                    'latencyDict': self.latency_dict, 'resetFlag': self.reset_flag,
+                                    'latencyDict': self.latency_dict,
+                                    # Next line added by Hamed June 22, 2022 for calculating Bandwidth consumption
+                                    'flowBWDict':self.bandwith_flow_dict, 'portBWDict':self.bandwith_srcid_dstid_port_dict, 
+                                    'resetFlag': self.reset_flag,
                                     'loadLevel': self.load_level, 'iterationFlag': self.iteration_flag,
                                     'iteration': self.iteration, 'stopFlag': self.stop_flag}
                     self.parent_conn.send(sending_dict)
@@ -529,8 +541,15 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                             self.temp_bw_map_ports[dpid_rec][port_no]['ts'] = ts_now
                             self.temp_bw_map_ports[dpid_rec][port_no]['bytes'] = bytes_now
                             # bw (bytes/sec)
-                            bw = byte_diff / ts_diff
+                            bw = (byte_diff*8) / ts_diff
                             self.bandwith_port_dict[dpid_rec][port_no] = bw
+                            
+                            #Added by Hamed Jun 11, 2022 for producing dict src_sw:dst_sw:bw
+                            mylinks=[(link.src.dpid,link.dst.dpid,link.src.port_no) for link in get_link(self, None)]
+                            
+                            for s,d,p in mylinks:
+                                if s==dpid_rec and p==port_no:
+                                    self.bandwith_srcid_dstid_port_dict[s][d]=bw
 
     # for getting flow stats
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
@@ -560,7 +579,7 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                     bytes_diff = number_bytes - self.temp_bw_map_flows[dpid_rec][ip_src][ip_dst]['bytes']
                     if time_diff > 0.0:
                         try:
-                            bw = bytes_diff / time_diff
+                            bw = (bytes_diff*8) / time_diff
                         except ZeroDivisionError:
                             self.logger.info(
                                 "Saved_ts: {} ts_now: {} diff: {}".format(
@@ -573,6 +592,10 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                         self.temp_bw_map_flows[dpid_rec][ip_src][ip_dst]['ts'] = ts_now
                         self.temp_bw_map_flows[dpid_rec][ip_src][ip_dst]['bytes'] = statistic.byte_count
                         self.bandwith_flow_dict[dpid_rec][ip_src][ip_dst] = bw
+                        # print("=====================FLOW BW DIC`S LOG==============\n")
+                        # print("FLOW BW DIC {}\n".format(self.bandwith_flow_dict))
+                        # print("====================================================\n")
+
 
     def send_packet_out(self, datapath, buffer_id, in_port):
         """

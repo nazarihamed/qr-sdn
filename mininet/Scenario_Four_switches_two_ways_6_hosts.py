@@ -5,7 +5,7 @@ from mininet.node import OVSKernelSwitch, UserSwitch
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink, Intf
-from thread import start_new_thread
+from _thread import start_new_thread
 import os, stat
 import json
 import time
@@ -71,6 +71,8 @@ def clearing_save_file_iterations(fileName, logs, iterations):
             os.makedirs(dir)
             # give folder rights
             os.chmod(dir, stat.S_IRWXO)
+            os.chmod(dir, 777)
+            os.chmod('{}{}.csv'.format(dir, fileName), 777)
         with open('{}{}.csv'.format(dir, fileName), 'w') as file:
             file.write("# loadlevel, timestamp \n")
 
@@ -103,6 +105,7 @@ def four_switches_network():
                            protocol='tcp',
                            port=6633)
 
+
     info('*** Add switches\n')
     s1 = net.addSwitch('s1', cls=OVSKernelSwitch)
     s2 = net.addSwitch('s2', cls=OVSKernelSwitch)
@@ -118,12 +121,14 @@ def four_switches_network():
     h42 = net.addHost('h42', cls=Host, ip='10.0.0.42', defaultRoute=None)
     h43 = net.addHost('h43', cls=Host, ip='10.0.0.43', defaultRoute=None)
 
+    
+
     info('*** Add links\n')
     linkArray.append(net.addLink(s1, s2, delay='10ms',use_tbf = True, bw=3, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
     linkArray.append(net.addLink(s2, s4, delay='10ms',use_tbf = True, bw=3, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
     linkArray.append(net.addLink(s1, s3, delay='14ms',use_tbf = True, bw=4, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
     linkArray.append(net.addLink(s3, s4, delay='14ms',use_tbf = True, bw=4, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-
+    
     net.addLink(h11, s1)
     net.addLink(h12, s1)
     net.addLink(h13, s1)

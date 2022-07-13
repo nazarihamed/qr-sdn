@@ -72,6 +72,9 @@ def learning_module(pipe, ):
 
     # fill-up-arrays / dicts
     average_latency_list = []
+
+    # Added by Maria for saving average bandwidth/throughput 6/13/2022
+    average_bw_list = []
     rewards_list = []
     reward_saving_list = []
     saving_value_array = []
@@ -124,6 +127,10 @@ def learning_module(pipe, ):
                        iterations_level)
     clearing_save_file(log_path, load_level, 'average_latency', split_up_load_levels, iteration_split_up_flag,
                        iterations_level)
+    # Added by Abdullah 
+    clearing_save_file(log_path, load_level, 'average_latency_throughput', split_up_load_levels, iteration_split_up_flag,
+                       iterations_level) 
+                       
     time_now = time.time()
     time_finish = time_now + (duration_per_minutes * 60)
     dt_object = datetime.fromtimestamp(time_finish)
@@ -145,6 +152,10 @@ def learning_module(pipe, ):
                 paths_per_flow = elements['paths_per_flow']
                 # dictionary with latency values between the links
                 latencydict = elements['latencyDict']
+                # Added by Hamed 06/06/2022 dictionary with flow-level bandwidth consumption 
+                flowBWdict = elements ['flowBWDict']
+                # Added by Hamed 07/06/2022 dictionary with flow-level bandwidth consumption 
+                portBWdict = elements ['portBWDict']
                 # wether load lvel changed
                 reset_load_flag = elements['resetFlag']
                 # load level gathered from  the mininet file (via the controller)
@@ -171,6 +182,9 @@ def learning_module(pipe, ):
                                                iteration_split_up_flag, iterations_level)
                             clearing_save_file(log_path, load_level, 'average_latency', split_up_load_levels,
                                                iteration_split_up_flag, iterations_level)
+                            # Added by Abdullah 
+                            clearing_save_file(log_path, load_level, 'average_latency_throughput', split_up_load_levels, iteration_split_up_flag,
+                                                iterations_level) 
                         # resetting the Q-Table (restart of learning process)
                         if reset_q_test:
                             Q, actions, state_transitions = update_Q_table({}, copied_paths_per_flow,
@@ -182,6 +196,9 @@ def learning_module(pipe, ):
                         rewards_list.clear()
                         reward_saving_list.clear()
                         average_latency_list.clear()
+                        # added by maria for average bandwidth 6/13/2022
+                        average_bw_list.clear()
+                        # normalized_average_latency_list.clear() # HAMED June 27, for normalization
 
                 if reset_iteration_flag:
                     save_q(Q, iterations_level)
@@ -191,6 +208,9 @@ def learning_module(pipe, ):
                                        iteration_split_up_flag, iterations_level)
                     clearing_save_file(log_path, load_level, 'average_latency', split_up_load_levels,
                                        iteration_split_up_flag, iterations_level)
+                    # Added by Abdullah 
+                    clearing_save_file(log_path, load_level, 'average_latency_throughput', split_up_load_levels, iteration_split_up_flag,
+                                        iterations_level) 
                     # resetting the Q-Table (restart of learning process)
                     if reset_q_test:
                         print("xxxxxxxx RESETTING Q LoadLevel: {} Iteration: {} xxxxxxxxxxxxx".format(load_level,
@@ -203,7 +223,9 @@ def learning_module(pipe, ):
                     temp_flows = []
                     rewards_list.clear()
                     reward_saving_list.clear()
-                    average_latency_list.clear()
+                    # added by maria for average bandwidth 6/13/2022
+                    average_bw_list.clear()
+
                     print("xxxxxxxxxxx Iteration: {} xxxxxxxxxxxxxxxxxxxxxxxxxx".format(iterations_level))
                     continue
                 # if the load level is not -1 or 0
@@ -237,19 +259,41 @@ def learning_module(pipe, ):
                             rewards_list.clear()
                             reward_saving_list.clear()
                             average_latency_list.clear()
+                            # added by maria for average bandwidth 6/13/2022
+                            average_bw_list.clear()
+                            # normalized_average_latency_list.clear() # HAMED June 27, for normalization
+
 
                         # calculate the rewards
                         if reward_mode.value == RewardMode.ONLY_LAT.value:
                             reward = get_reward(current_combination, latencydict)
                         elif reward_mode.value == RewardMode.LAT_UTILISATION.value:
-                            reward = get_reward_utilization(current_combination, latencydict)
+                            reward = get_reward_utilization(current_combination, portBWdict, latencydict)
 
                         # check if waited sufficient long time
                         # if delayed_reward_counter >= delay_reward:
+
+                        # HAMED: original code is commented
                         average_latency_list.append(get_average_latency(current_combination, latencydict))
+
+                        # Added by Hamed June 27, to add normalized average latency values
+                        # list1, list2=get_average_latency(current_combination, latencydict)
+                        # average_latency_list.append(list1)
+                        # normalized_average_latency_list.append(list2)
+
+
+
+                        # Added by maria for saving avg bandwidth
+                        average_bw_list.append(get_average_bandwidth(current_combination, portBWdict))
+                        
+                        
                         rewards_list.append(reward)
                         reward_saving_list.append(reward)
-                        print("Average lat: {} reward: {}".format(average_latency_list, rewards_list))
+
+                        # Modified by Maria to incorporate Average bandwidth list to be printed
+                        #print("Average lat: {} reward: {}".format(average_latency_list, rewards_list))
+                        print("Average lat: {} Average normalized lat: {} Average bw: {} reward: {}".format(average_latency_list,normalized_average_latency_list, average_bw_list, rewards_list))
+
                         # check if epsilon should be recalculated
                         if exploration_mode.value == ExplorationMode.FALLING_EPS.value:
                             epsilon = calc_epsilon(general_iterator)
@@ -300,7 +344,7 @@ def learning_module(pipe, ):
                                 previous_state = copy.deepcopy(current_state)
                                 # find out next state:
                                 if action_mode.value == ActionMode.DIRECT_CHANGE.value:
-                                    current_state = get_next_state(state_transitions, current_state, action, True)
+                                    current_state = get_next_state(state_transitions, current_state, action)
                                 else:
                                     current_state = get_next_state(state_transitions, current_state, action)
 
@@ -319,11 +363,23 @@ def learning_module(pipe, ):
                                 save_csv_file(log_path, load_level, 'reward_controller', np.mean(reward_saving_list),
                                               general_iterator // measurements_for_reward, split_up_load_levels,
                                               iteration_split_up_flag, iterations_level)
-                                save_csv_file(log_path, load_level, 'average_latency', np.mean(average_latency_list),
-                                              general_iterator // measurements_for_reward, split_up_load_levels,
-                                              iteration_split_up_flag, iterations_level)
+                                #Added by Maria - conditional statements for saving latency and throughput based on reward mode          
+                                if reward_mode.value == RewardMode.ONLY_LAT.value: 
+                                    save_csv_file(log_path, load_level, 'average_latency', np.mean(average_latency_list),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)
+                                #Added by Maria for saving reward to csv - both average latency and bandwidth for plotting purpose
+                                elif reward_mode.value == RewardMode.LAT_UTILISATION.value:                                   
+                                    save_csv_file_overload(log_path, load_level, 'average_latency_throughput', np.mean(average_latency_list), np.mean(average_bw_list),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)
+
                                 reward_saving_list.clear()
                                 average_latency_list.clear()
+                                #Added by Maria for avg bandwidth
+                                average_bw_list.clear()
+                                # normalized_average_latency_list.clear() # HAMED: June 27, normalized latency list
+                                
 
                             # saving the q-table (for DEBUG or to approximate agent actions)
                             if not (saving_iterator % interval_saving_q) and saving_iterator > 0:
@@ -417,14 +473,43 @@ def get_average_latency(current_path_combination, latency_dict):
     @param current_path_combination:
     @param latency_dict:
     @return:
-    """
+"""
+   
     latency_list = get_costs_of_paths(current_path_combination, latency_dict)
+    
+    # print("============================================")
+    # print(f"latency list {latency_list}")
+    # print(f"latency list len {len(latency_list)}")
+    # print(f"average latency list {normalized_latency_list}")
+    # print(f"latency list len {len(normalized_latency_list)}")
+    # print("============================================")
+    
     cost = 0
+    normalized_cost = 0
+    
+    # commented by Hamed on June 27, for modifying to enable normalization for avg latency, referring to the code below 
     for element in latency_list:
         cost += element
     avg_lat = cost / len(latency_list)
+    
     return avg_lat
 
+# Added by Hamed Jun 13, 2022 to calculate average bandwidth
+def get_average_bandwidth(current_path_combination, bandwidth_port_dict):
+    """
+    calculates the average (latency) value of all elements of a list
+    @param current_path_combination:
+    @param latency_dict:
+    @return:
+"""
+    
+    bandwidth_list = get_costs_of_paths_BW(current_path_combination, bandwidth_port_dict)
+    cost = 0
+    for element in bandwidth_list:
+        cost += element
+    avg_bw = cost / len(bandwidth_list)
+
+    return avg_bw
 
 def get_reward(current_path_combination, latency_dict):
     """
@@ -433,23 +518,26 @@ def get_reward(current_path_combination, latency_dict):
     @param latency_dict:
     @return:
     """
+
     latency_list = get_costs_of_paths(current_path_combination, latency_dict)
     cost = 0
     for element in latency_list:
         cost += element ** 2
     sqroot_latency = math.sqrt(cost / len(latency_list))
+
     return -sqroot_latency
 
-
-def get_reward_utilization():
+def get_reward_utilization(current_path_combination, bw_dict, latency_dict):
     """
     TODO: for ressource maximisation
     (current_path_combination, latency_dict, bandwidth_dict = {}, max_bw_dict = {})
     calculates the reward as a combination of utilisation and latency
     @return:
     """
-    return 0
-
+    sqt_avg_latency = get_reward(current_path_combination, latency_dict)
+    avg_bw = get_average_bandwidth(current_path_combination, bw_dict)
+  
+    return sqt_avg_latency + (1/avg_bw)
 
 def get_costs_of_paths(current_path_combination, latency_dict):
     """
@@ -460,10 +548,24 @@ def get_costs_of_paths(current_path_combination, latency_dict):
     """
     value_list = []
     for path in current_path_combination:
-        cost = get_path_cost(latency_dict, current_path_combination[path])
+        cost, normalized_cost = get_path_cost(latency_dict, current_path_combination[path])
         value_list.append(cost)
+
     return value_list
 
+def get_costs_of_paths_BW(current_path_combination, portBWdict):
+    """
+    array of path costs
+    @param current_path_combination:
+    @param latency_dict:
+    @return: array of path costs
+    """
+    value_list = []
+    for path in current_path_combination:
+        cost = get_path_cost_BW(portBWdict, current_path_combination[path])
+        value_list.append(cost)
+
+    return value_list
 
 def update_Q_table(prev_q, paths_per_flow, merging_q_table_flag, action_mode, joined_flows_set={}):
     """
@@ -918,7 +1020,7 @@ def get_paths(latency_dict, src, dst):
 
 
 # can also be changed to BWs, or to hops
-def get_link_cost(latency_dict, s1, s2):
+def get_link_cost(dict, s1, s2):
     """
     returns the link cost
     @param latency_dict:
@@ -926,9 +1028,8 @@ def get_link_cost(latency_dict, s1, s2):
     @param s2: switch 2
     @return:
     """
-    link_cost = latency_dict[s2][s1]
+    link_cost = dict[s2][s1]
     return link_cost
-
 
 # get the cost of a path
 def get_path_cost(latency_dict, path):
@@ -939,10 +1040,24 @@ def get_path_cost(latency_dict, path):
     @return:
     """
     cost = 0
+    normalized_cost=0
     for i in range(len(path) - 1):
         cost += get_link_cost(latency_dict, path[i], path[i + 1])
     return cost
 
+# Added by Hamed Jun 13, 2022 get the cost of a path based on BW
+def get_path_cost_BW(portBWdict, path):
+    """
+    gets the cost of an path
+    @param latency_dict:
+    @param path:
+    @return:
+    """
+    cost = get_link_cost(portBWdict, path[0], path[1])
+    for i in range(len(path) - 1):
+        if get_link_cost(portBWdict, path[i], path[i + 1]) < cost :
+            cost = get_link_cost(portBWdict, path[i], path[i + 1])
+    return cost
 
 def key_max_action_value(actions, element=2):
     """
@@ -1127,6 +1242,33 @@ def save_csv_file(log_path, load_level, file_name, reward, timepoint, split_up_l
         file_writer = csv.writer(csvfile, delimiter=',')
         file_writer.writerow([timepoint, reward, time.time()])
 
+# Added by Maria - Overload method to enable saving both latency and throughput reward in a single file
+def save_csv_file_overload(log_path, load_level, file_name, reward1, reward2, timepoint, split_up_load_levels, iterations_split_upflag,
+                  iteration):
+    """
+    saving the reward or latency in a csv file
+    @param log_path:
+    @param load_level:
+    @param file_name:
+    @param reward:
+    @param timepoint:
+    @param split_up_load_levels:
+    @param iterations_split_upflag:
+    @param iteration: number iteration
+    """
+    if split_up_load_levels:
+        load_level_str = '/' + str(load_level)
+    else:
+        load_level_str = ''
+    if iterations_split_upflag:
+        iteration_level_str = '/' + str(iteration)
+    else:
+        iteration_level_str = ''
+    dir_str = '{}{}{}'.format(log_path, iteration_level_str, load_level_str)
+    with open('{}/{}.csv'.format(dir_str, file_name), 'a') as csvfile:
+        file_writer = csv.writer(csvfile, delimiter=',')
+        file_writer.writerow([timepoint, reward1, reward2, time.time()])
+
 
 def clearing_save_file(log_path, load_level, file_name, split_up_load_levels, iterations_split_upflag, iteration):
     """
@@ -1151,7 +1293,14 @@ def clearing_save_file(log_path, load_level, file_name, split_up_load_levels, it
     if not os.path.exists(dirStr):
         os.makedirs(dirStr)
     with open('{}/{}.csv'.format(dirStr, file_name), 'w') as file:
-        file.write("# iterator, reward, timestamp \n")
+        # Added by Maria - adding columns based on reward mode
+        if Config.reward_mode.value == RewardMode.LAT_UTILISATION.value:
+            if file_name == "reward_controller":
+                file.write("# iterator, reward, timestamp \n")
+            elif file_name == "average_latency_throughput":    
+                file.write("# iterator, reward_latency, reward_throughput, timestamp \n")
+        elif Config.reward_mode.value == RewardMode.ONLY_LAT.value:
+            file.write("# iterator, reward, timestamp \n")
 
 '''
 ###################### Debugging fcuntions #############################

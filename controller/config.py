@@ -3,6 +3,8 @@
 """
 from enum import Enum
 import math
+# Added by Hamed June 23, for adding BW and Latency theoretical values
+import json
 
 
 class QMode(Enum):
@@ -53,11 +55,11 @@ class Config(object):
     measurements_for_reward = 1
 
     # duration to stay in one load level by iperf
-    duration_iperf_per_load_level_minutes = 20
+    duration_iperf_per_load_level_minutes = 1
 
     # load level
-    load_levels = [10, 10]
-    # load_levels = [10]
+    # load_levels = [10, 10]
+    load_levels = [10]
 
     # number of iterations per measurement
     iterations = 30
@@ -73,13 +75,13 @@ class Config(object):
     exploration_mode = ExplorationMode.SOFTMAX
 
     # action mode
-    action_mode = ActionMode.ONE_FLOW
+    action_mode = ActionMode.DIRECT_CHANGE
 
     # if LoadLevel Test Case
     reset_Q_test_flag = True
 
     # splitting up - each load level different log file
-    split_up_load_levels_flag = False
+    split_up_load_levels_flag = True
 
     # if merging QTables when new flow joins
     merging_q_table_flag = False
@@ -96,7 +98,7 @@ class Config(object):
     savingRewardCounter = 1
 
     # style of reward
-    reward_mode = RewardMode.ONLY_LAT
+    reward_mode = RewardMode.LAT_UTILISATION
 
     ################### Remote Controller ########################
 
@@ -123,3 +125,11 @@ class Config(object):
     # size_iperf_pkt_bytes = 100
     # bandwith, in Mbit/s
     bw_max_dict = {1: {2: 4.0, 3: 3.0}, 2: {4: 4.0}, 3: {4: 3.0}}
+
+    # Added by Hamed on June 23, 2022 - Links BW and Latency theoretical values
+    # structure => srcid:{dstid:value} read from JSON file
+    with open('../mininet/Scenario_Four_switches_two_ways_6_hosts.json') as json_file:
+        data = json.load(json_file)
+
+    bw_theoretical_dict=data["bw"]
+    latency_theoretical_dict=data["lat"]
