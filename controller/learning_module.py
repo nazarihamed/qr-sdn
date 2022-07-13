@@ -292,7 +292,7 @@ def learning_module(pipe, ):
 
                         # Modified by Maria to incorporate Average bandwidth list to be printed
                         #print("Average lat: {} reward: {}".format(average_latency_list, rewards_list))
-                        print("Average lat: {} Average normalized lat: {} Average bw: {} reward: {}".format(average_latency_list,normalized_average_latency_list, average_bw_list, rewards_list))
+                        print("Average lat: {} Average bw: {} reward: {}".format(average_latency_list, average_bw_list, rewards_list))
 
                         # check if epsilon should be recalculated
                         if exploration_mode.value == ExplorationMode.FALLING_EPS.value:
