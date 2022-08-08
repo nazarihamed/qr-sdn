@@ -236,6 +236,11 @@ def filter_paths(latencyDict, paths, max_possible_paths):
     print("PATHS: {}".format(paths))
     return [path[0] for path in best_paths[:max_possible_paths]]
 
+#Added by HAMED Aug, 8, 2022 to Log outputs
+def logging(title,input):
+    print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+    print(f'{title}: {input}\n')
+    print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
 #########################
 # Rerouting Levensteihn #

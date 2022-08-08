@@ -1,4 +1,5 @@
 from distutils.command.config import config
+from importlib.resources import path
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -76,6 +77,7 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                       {simple_switch_instance_name: self})
 
         self.waitTillStart = 0
+
         self.latency_measurement_flag = False
         # initialize mac address table.
         self.mac_to_port = {}
@@ -124,6 +126,35 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
         self.bandwith_port_dict = {}
         # Added by Hamed Jun,8,2022
         self.bandwith_srcid_dstid_port_dict = {}
+
+        #Added by HAMED Jul, 17, 2022 to add plr (packet loss ratio) per path
+        self.PortMap_topo={}
+        self.PortMap_send={}
+        self.PortMap_recv={}
+        self.datapaths={}
+
+        #Added by HAMED Aug, 8, 2022 to add plr (packet loss ratio) per link
+        self.s1_s2_sp_dp={}
+        self.s1_s2_send={}
+        self.s1_s2_recv={}
+        self.s1_s2_plr={}
+        self.s1_s2_pdr={}
+
+        #Added by HAMED Jul, 23, 2022 to add plr (packet loss ratio)
+        self.plr_path_firstoutport_lastinport={}
+
+        #Added by HAMED Jul, 26, 2022 to add plr (packet loss ratio)
+        self.plr_srcip_dstip_h1_h2={}
+        self.plr_prv_value=0
+        
+        #Added by HAMED Aug, 8, 2022 to add pdr (packet delivery ratio)
+        self.pdr_prv_value=0
+
+        #Added by HAMED Jul, 26, 2022 to add plr,bw, and Latency per path
+        self.path_plr={}
+        self.path_bw={}
+        self.path_lat={}
+
 
         self.bandwith_flow_dict = {}
         self.best_route_rl = []
@@ -190,13 +221,111 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
         # Added By Hamed Jun 11, 2022 for calculating per port bandwidth consumption
         self.bandwith_srcid_dstid_port_dict[dpid]={}
 
+        #Added by HAMED Jul, 17, 2022 to add plr (packet loss ratio)
+        self.PortMap_topo[dpid]={}
+        self.PortMap_send[dpid]={}
+        self.PortMap_recv[dpid]={}
+        self.datapaths[datapath.id] = datapath
+
+        #Added by HAMED Aug, 8, 2022 to add per link plr (packet loss ratio)
+        self.s1_s2_sp_dp[dpid]={}
+        self.s1_s2_send[dpid]={}
+        self.s1_s2_recv[dpid]={}
+        self.s1_s2_pdr[dpid]={}
+        self.s1_s2_plr[dpid]={}
+
+
         # ggf max BW abfragen / phys. mgl.
         #  starting the monitoring elements
         #  echo_request
         hub.spawn(self.monitor_sw_controller_latency, datapath)
         # Starting flooding thread for flooding monitoring package
         hub.spawn(self.monitor_latency, datapath, ofproto)
+        #Added by HAMED Jul, 17, 2022 to add plr (packet loss ratio)
+        hub.spawn(self.monitor_link_loss)
 
+    #Added by HAMED Jul, 17, 2022 to add plr (packet loss ratio)
+    def _get_plr(self, tx, rx):
+        
+        if tx:
+            self.plr_prv_value = abs(tx - rx) / (tx)
+            return self.plr_prv_value
+        else:
+            return self.plr_prv_value
+    
+    #Added by HAMED Aug, 8, 2022 to add per link plr (packet loss ratio)
+    def _get_link_plr(self, tx, rx):
+        
+        if tx:
+            self.plr_prv_value = abs(tx - rx) / (tx)
+            return self.plr_prv_value
+        else:
+            return self.plr_prv_value
+    
+    #Added by HAMED Aug, 8, 2022 to add per link plr (packet loss ratio)
+    def _get_link_pdr(self, tx, rx):
+        
+        if tx:
+            self.pdr_prv_value = abs(rx) / (tx)
+            return self.pdr_prv_value
+        else:
+            return self.pdr_prv_value
+
+    #Added by HAMED Jul, 17, 2022 to add plr (packet loss ratio)
+    def monitor_link_loss(self):
+        while True:
+            hub.sleep(5)
+            try:
+                links_list = get_link(self, None)
+                mylinks=[(link.src.dpid,link.dst.dpid,
+                            link.src.port_no,link.dst.port_no)
+                                for link in links_list]
+                if len(mylinks) > 0:
+                    for id_foward in self.chosen_path_per_flow.keys():
+                        myPath=self.chosen_path_per_flow[id_foward]
+                        # self.PortMap_send[myPath[0]][myPath[-1]]=0
+                        # self.PortMap_recv[myPath[0]][myPath[-1]]=0
+                        self.path_plr[tuple(myPath)]=0
+
+
+                    for s1,s2,sp,dp in mylinks:
+                        # Added by Hamed Aug, 8, 2022 to add per link plr
+                        self.s1_s2_sp_dp[s1][s2]=sp
+                        self.s1_s2_sp_dp[s2][s1]=dp
+                        self.s1_s2_send[s1][s2]=0
+                        self.s1_s2_recv[s1][s2]=0
+                        self.s1_s2_pdr[s1][s2]=0
+                        self.s1_s2_plr[s1][s2]=0
+                        self.s1_s2_send[s2][s1]=0
+                        self.s1_s2_recv[s2][s1]=0
+                        self.s1_s2_pdr[s2][s1]=0
+                        self.s1_s2_plr[s2][s1]=0
+
+                        
+                        # Added by Hamed Jul, 23, 2022 to add per path plr
+                        self.PortMap_send[s1][sp]=0
+                        self.PortMap_send[s1][dp]=0
+                        self.PortMap_recv[s2][sp]=0
+                        self.PortMap_recv[s2][dp]=0
+                        # self.plr_srcid_dstid_port_dict[s1][s2]=0
+                for dp in self.datapaths.values():
+                    self.send_port_stats_request(dp)
+            except Exception as inst:
+                print("Exception=",inst)
+
+    # get the cost of a path based on latency dictionary
+    def get_path_cost_lat(self,dict, path):
+        """
+        gets the cost of an path
+        @param latency_dict:
+        @param path:
+        @return:
+        """
+        cost = 0
+        for i in range(len(path) - 1):
+            cost += dict[path[i]][path[i + 1]]
+        return cost
+    
     # checks for action done
     # updates latency dict learning module
     def checking_updates(self):
@@ -231,6 +360,13 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                     self.last_state_change = time.time() + (Config.delay_reward * interval_communication_processes) - 1
                     self.last_action = time.time()
             self.latency_dict = functions.convert_data_map_to_dict(self.data_map, 'latencyRTT')
+            
+            #Added by HAMED July 27, 2022 for calculating latency of path 
+            for id_foward in self.chosen_path_per_flow.keys():
+                myPath=self.chosen_path_per_flow[id_foward]
+                self.path_lat[tuple(myPath)]=self.get_path_cost_lat(self.latency_dict,myPath)
+
+            
             # check if latency measurements are sufficient
             if i > 0:
                 # checking if all measurements are sufficient
@@ -255,7 +391,11 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                                     'paths_per_flow': self.paths_per_flows,
                                     'latencyDict': self.latency_dict,
                                     # Next line added by Hamed June 22, 2022 for calculating Bandwidth consumption
-                                    'flowBWDict':self.bandwith_flow_dict, 'portBWDict':self.bandwith_srcid_dstid_port_dict, 
+                                    'flowBWDict':self.bandwith_flow_dict, 'portBWDict':self.bandwith_srcid_dstid_port_dict,
+                                    #Added by Hamed Aug 8, 2022 for incorporating Per link plr
+                                    'portPLRDict':self.s1_s2_plr, 'portPDRDict': self.s1_s2_pdr,
+                                    # Added by Hamed July 20, 2022 for incorporating Per path plr, bw, and latency
+                                    'pathPLRDict':self.path_plr, 'pathBWDict':self.path_bw, 'pathLATDict':self.path_lat,
                                     'resetFlag': self.reset_flag,
                                     'loadLevel': self.load_level, 'iterationFlag': self.iteration_flag,
                                     'iteration': self.iteration, 'stopFlag': self.stop_flag}
@@ -380,7 +520,8 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                 self.logger.info("Packet arrived earlier")
             return
 
-        if src_mac not in self.hosts:
+        # Modified by HAMED July 26, on PLR calculation
+        if src_mac not in self.hosts and eth_pkt.ethertype != ether_types.ETH_TYPE_LLDP:
             self.hosts[src_mac] = (dpid_rec, in_port)
         # filter packets
         if eth_pkt.ethertype == ether_types.ETH_TYPE_LLDP:
@@ -446,6 +587,8 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                 if (h1, h2) not in self.already_routed_ip:
                     self.routing_ip(h1, h2, src_ip, dst_ip)
                     self.already_routed_ip.append((h1, h2))
+                    #Added by HAMED July 26, 2022 for PLR
+                    self.plr_srcip_dstip_h1_h2[f'{src_ip}_{dst_ip}']=[h1,h2]
 
     def monitor_sw_controller_latency(self, datapath):
         """
@@ -543,14 +686,42 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                             # bw (bytes/sec)
                             bw = (byte_diff*8) / ts_diff
                             self.bandwith_port_dict[dpid_rec][port_no] = bw
-                            
-                            #Added by Hamed Jun 11, 2022 for producing dict src_sw:dst_sw:bw
-                            mylinks=[(link.src.dpid,link.dst.dpid,link.src.port_no) for link in get_link(self, None)]
-                            
-                            for s,d,p in mylinks:
-                                if s==dpid_rec and p==port_no:
-                                    self.bandwith_srcid_dstid_port_dict[s][d]=bw
 
+
+                            # Added by Hamed Jun 27, 2022 for producing dict src_sw:dst_sw:bw
+                            mylinks=[(link.src.dpid,link.dst.dpid,link.src.port_no,link.dst.port_no) for link in get_link(self, None)]
+                            for s,d,sp,dp in mylinks:
+                                if s==dpid_rec and sp==port_no:
+                                    self.bandwith_srcid_dstid_port_dict[s][d]=bw
+                                    #Added by HAMED Jul, 27, 2022 to add per path plr (packet loss ratio)
+                                    self.PortMap_send[s][sp]=statistic.tx_packets
+                                    self.PortMap_recv[s][sp]=statistic.rx_packets
+
+                                    #Added by HAMED Aug, 8, 2022 to add per link plr (packet loss ratio)
+                                    self.s1_s2_send[s][d]=statistic.tx_packets
+                                    self.s1_s2_recv[s][d]=statistic.rx_packets
+                                    self.s1_s2_pdr[s][d]=self._get_link_pdr(self.s1_s2_send[s][d],self.s1_s2_recv[d][s])
+                                    self.s1_s2_plr[s][d]=self._get_link_plr(self.s1_s2_send[s][d],self.s1_s2_recv[d][s])
+
+                            
+                            #Added by HAMED Jul, 27, 2022 to add plr (packet loss ratio)
+                            for id_foward in self.chosen_path_per_flow.keys():
+                                myPath=self.chosen_path_per_flow[id_foward]
+                                h1,h2=self.plr_srcip_dstip_h1_h2[id_foward][0], self.plr_srcip_dstip_h1_h2[id_foward][1]
+                                path_for_plr=self.add_ports_to_path(myPath,h1[1], h2[1])
+                                self.plr_path_firstoutport_lastinport[tuple(myPath)]=[myPath[0],
+                                    path_for_plr[myPath[0]][1], myPath[-1],path_for_plr[myPath[-1]][0]]
+                                tx=self.PortMap_send[myPath[0]][path_for_plr[myPath[0]][1]]
+                                rx=self.PortMap_recv[myPath[-1]][path_for_plr[myPath[-1]][0]]
+                                self.path_plr[tuple(myPath)]=self._get_plr(tx,rx)
+                                bw_cost=self.bandwith_srcid_dstid_port_dict[myPath[0]][myPath[1]]
+                                for i in range(len(myPath) - 1):
+                                    if self.bandwith_srcid_dstid_port_dict[myPath[i]][myPath[i+1]] < bw_cost :
+                                        bw_cost = self.bandwith_srcid_dstid_port_dict[myPath[i]][myPath[i+1]]
+                                self.path_bw[tuple(myPath)]=bw_cost
+
+
+                           
     # for getting flow stats
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def flow_stats_reply_handler(self, ev):
@@ -592,10 +763,6 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                         self.temp_bw_map_flows[dpid_rec][ip_src][ip_dst]['ts'] = ts_now
                         self.temp_bw_map_flows[dpid_rec][ip_src][ip_dst]['bytes'] = statistic.byte_count
                         self.bandwith_flow_dict[dpid_rec][ip_src][ip_dst] = bw
-                        # print("=====================FLOW BW DIC`S LOG==============\n")
-                        # print("FLOW BW DIC {}\n".format(self.bandwith_flow_dict))
-                        # print("====================================================\n")
-
 
     def send_packet_out(self, datapath, buffer_id, in_port):
         """
@@ -647,6 +814,18 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                 self.data_map[dpid_rec][keys_dpid_sent]['bw'].append(bw_object)
                 break
 
+    # Added by HAMED July 26, 2022 for PLR
+    def add_ports_to_path(self, path, first_port, last_port):
+        p = {}
+        in_port = first_port
+        for s1, s2 in zip(path[:-1], path[1:]):
+            out_port = self.data_map[s1][s2]['in_port']
+            p[s1] = (in_port, out_port)
+            in_port = self.data_map[s2][s1]['in_port']
+        p[path[-1]] = (in_port, last_port)
+        return p
+
+
     def routing_arp(self, h1, h2, src_ip, dst_ip):
         """
         Routing of ARP requests
@@ -667,10 +846,12 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
         :param src_ip:
         :param dst_ip:
         """
+
         if ROUTING_TYPE == RoutingType.DFS:
             id_forward = functions.build_connection_between_hosts_id(src_ip, dst_ip)
             path_optimal, paths = self.routing_shortest_path.get_optimal_path(self.latency_dict, h1[0], h2[0])
             paths = functions.filter_paths(self.latency_dict, paths, Config.max_possible_paths)
+
             if Config.qMode.value == QMode.SHORTEST_PATH.value:
                 # print("latency dict: {}".format(self.latency_dict_SPF))
                 path_optimal, paths = self.routing_shortest_path.get_optimal_path(self.latency_dict_SPF, h1[0], h2[0])
@@ -682,12 +863,16 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                 print("DFS routing src_ip: {} dst_ip: {} path: {}".format(src_ip, dst_ip, path_optimal))
                 self.routing_shortest_path.install_path(self, path_optimal, h1[1], h2[1], src_ip, dst_ip, 'ipv4')
                 self.chosen_path_per_flow[id_forward] = path_optimal
+
+                #Added by Hamed Jun 11, 2022 for producing dict src_sw:dst_sw:bw
+                self.plr_path_firstoutport_lastinport[tuple(path_optimal)]={}
+
             elif self.bias.value == BiasRL.RANDOM.value and Config.qMode.value != QMode.SHORTEST_PATH.value:
                 chosen_path = random.choice(paths)
                 self.routing_shortest_path.install_path(self, chosen_path, h1[1], h2[1], src_ip, dst_ip, 'ipv4')
                 self.chosen_path_per_flow[id_forward] = chosen_path
                 print("XXXXXXXXXXXXXRouted RandomXXXXXXXXXXXXXXX chosenpath: {} fw id: {}".format(chosen_path,
-                                                                                                  id_forward))
+                                                                                                    id_forward))
 
     # prev: self, src_ip, dst_ip, newPath
     def reroute(self, id_forward, new_path):
@@ -738,7 +923,7 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
             if chosenflow_prev[switch_old_index_prev] not in flow_delete_list:
                 flow_mod_list.append(chosenflow_prev[switch_old_index_prev])
             j += 1
-        # delete duplicates from modlist
+        # delete duplicates mm modlist
         flow_mod_list = list(dict.fromkeys(flow_mod_list))
         flow_mod_list.reverse()
         # first addFlows

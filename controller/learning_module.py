@@ -18,6 +18,10 @@ from config import ActionMode
 from config import RewardMode
 from datetime import datetime
 
+#Added by Hamed July 28, 2022 for new reward design
+from controller import RewardController
+
+
 MAX_LENGHT_DIFFSET = 2
 MAX_PAST_REWARDS = 5
 # modes:
@@ -156,6 +160,18 @@ def learning_module(pipe, ):
                 flowBWdict = elements ['flowBWDict']
                 # Added by Hamed 07/06/2022 dictionary with flow-level bandwidth consumption 
                 portBWdict = elements ['portBWDict']
+                #Added by HAMED Aug, 08, 2022 to add per link pdr (packet delivery ratio)
+                portPDRDict=elements['portPDRDict']
+                portPLRDict=elements['portPLRDict']
+                #Added by HAMED Jul, 20, 2022 to add per link plr (packet loss ratio)
+                pathPLRDict=elements['pathPLRDict']
+                #Added by HAMED Jul, 20, 2022 to add plr (packet loss ratio)
+                pathBWDict=elements['pathBWDict']
+                #Added by HAMED Jul, 20, 2022 to add plr (packet loss ratio)
+                pathLATDict=elements['pathLATDict']
+                # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                # print(f'portPLRDict: {portPLRDict}\n')
+                # print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                 # wether load lvel changed
                 reset_load_flag = elements['resetFlag']
                 # load level gathered from  the mininet file (via the controller)
@@ -262,12 +278,64 @@ def learning_module(pipe, ):
                             # added by maria for average bandwidth 6/13/2022
                             average_bw_list.clear()
 
-
+                        reward=0
                         # calculate the rewards
                         if reward_mode.value == RewardMode.ONLY_LAT.value:
+                            # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                            # print(f'pathLATDict: {pathLATDict}\n')
+                            # print(f'pathBWDict: {pathBWDict}\n')
+                            # print(f'pathBWDict_AVG: {get_average_dict(pathBWDict)}\n')
+                            # print(f'pathPLRDict: {pathPLRDict}\n')
+                            # print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                             reward = get_reward(current_combination, latencydict)
                         elif reward_mode.value == RewardMode.LAT_UTILISATION.value:
                             reward = get_reward_utilization(current_combination, portBWdict, latencydict)
+                        
+                        #Added by HAMED July 27,2022 For new reward design
+                        elif reward_mode.value == RewardMode.COMBINED.value:
+                            
+                            rew=get_costs_of_paths_PLR(current_combination,portPDRDict)
+                            
+                            import functions
+                            functions.logging('path',current_combination)
+                            functions.logging('plr of path',rew)
+                            
+                            # latency values are in ms
+                            LATENCY_INTENSIVE = {'lat':20, 'bw':2000000, 'plr':0.08 }
+                            # BW values in BPS
+                            BANDWIDTH_INTENSIVE = {'lat':40, 'bw':3000000, 'plr':0.08 }
+                            PACKETLOSS_INTENSIVE = {'lat':40, 'bw':2000000, 'plr':0.02 }
+
+                            trafficType=[LATENCY_INTENSIVE, BANDWIDTH_INTENSIVE, PACKETLOSS_INTENSIVE]
+
+                            traffic_type=random.choice(trafficType)
+                            lat_max=traffic_type['lat']
+                            bw_min=traffic_type['bw']
+                            plr_max=traffic_type['plr']
+
+                            lat_avg=get_average_dict(pathLATDict)
+                            bw_avg=get_average_dict(pathBWDict)
+                            plr_avg=get_average_dict(pathPLRDict)
+
+                            dict_measurement={}
+
+                            dict_measurement['latency_max']=lat_max
+                            dict_measurement['latency_flow']=lat_avg
+
+                            dict_measurement['bandwidth_min']=bw_min
+                            dict_measurement['bandwidth_flow']=bw_avg
+
+                            dict_measurement['packetloss_max']=plr_max
+                            dict_measurement['packetloss_flow']=plr_avg
+                            
+                            
+                            reward = RewardController.RewardController().get_total_reward(RewardMode.COMBINED.value, dict_measurement)
+
+                            print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                            print(f'\n\nTOTAL_REWARD: {reward}\n\n')
+                            print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+
+
 
                         # check if waited sufficient long time
                         # if delayed_reward_counter >= delay_reward:
@@ -366,6 +434,10 @@ def learning_module(pipe, ):
                                     save_csv_file_overload(log_path, load_level, 'average_latency_throughput', np.mean(average_latency_list), np.mean(average_bw_list),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
                                                 iteration_split_up_flag, iterations_level)
+                                elif reward_mode.value == RewardMode.COMBINED.value:                                   
+                                    save_csv_file(log_path, load_level, 'new_reward_controller', np.mean(reward_saving_list),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)
 
                                 reward_saving_list.clear()
                                 average_latency_list.clear()
@@ -390,6 +462,9 @@ def learning_module(pipe, ):
                     print("Exited after {} steps (last load level)".format(general_iterator))
                     break
 
+
+def get_average_dict(dict):
+    return sum(dict.values())/len(dict.values())
 
 def get_action(exploration_mode, current_state, Q, epsilon, temperature, exploration_degree):
     """
@@ -501,6 +576,8 @@ def get_reward(current_path_combination, latency_dict):
     @return:
     """
 
+    
+    
     latency_list = get_costs_of_paths(current_path_combination, latency_dict)
     cost = 0
     for element in latency_list:
@@ -535,6 +612,7 @@ def get_costs_of_paths(current_path_combination, latency_dict):
 
     return value_list
 
+# Added by Hamed Jun 13, 2022 get the cost of a path based on BW
 def get_costs_of_paths_BW(current_path_combination, portBWdict):
     """
     array of path costs
@@ -545,6 +623,21 @@ def get_costs_of_paths_BW(current_path_combination, portBWdict):
     value_list = []
     for path in current_path_combination:
         cost = get_path_cost_BW(portBWdict, current_path_combination[path])
+        value_list.append(cost)
+
+    return value_list
+
+# Added by Hamed Aug 8, 2022 get the cost of a path based on PLR
+def get_costs_of_paths_PLR(current_path_combination, portPDRdict):
+    """
+    array of path costs
+    @param current_path_combination:
+    @param latency_dict:
+    @return: array of path costs
+    """
+    value_list = []
+    for path in current_path_combination:
+        cost = get_path_cost_PLR(portPDRdict, current_path_combination[path])
         value_list.append(cost)
 
     return value_list
@@ -588,7 +681,6 @@ def update_Q_table(prev_q, paths_per_flow, merging_q_table_flag, action_mode, jo
     print("Time to merge: {} micro_sec".format((time.time() - t0) * 10 ** 6))
     print("Action Size: {}".format(len(actions)))
     return Q, actions, state_transitions
-
 
 def merging_qtable(prev_q, new_q, difference_set):
     """
@@ -1039,6 +1131,19 @@ def get_path_cost_BW(portBWdict, path):
         if get_link_cost(portBWdict, path[i], path[i + 1]) < cost :
             cost = get_link_cost(portBWdict, path[i], path[i + 1])
     return cost
+
+# Added by Hamed Aug 8, 2022 get the cost of a path based on PLR
+def get_path_cost_PLR(portPDRdict, path):
+    """
+    gets the cost of an path
+    @param portPLRdict:
+    @param path:
+    @return:
+    """
+    cost = 1
+    for i in range(len(path) - 1):
+        cost *= get_link_cost(portPDRdict, path[i], path[i + 1])
+    return 1-cost
 
 def key_max_action_value(actions, element=2):
     """

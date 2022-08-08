@@ -36,11 +36,32 @@ class ActionMode(Enum):
 class RewardMode(Enum):
     ONLY_LAT = 1
     LAT_UTILISATION = 2
+    COMBINED = 3
 
+"""Added by Maria 7/18/2022 for setting the epsilon values"""
+class Epsilon(Enum):
+    EPSILON_LATENCY = 0.005
+    EPSILON_BANDWIDTH = 0.005
+    EPSILON_PACKETLOSS = 0.005
+
+"""Added by Maria 7/18/2022 for setting the weights for reward"""
+class WeightReward(Enum):
+    WEIGHT_LATENCY = 1
+    WEIGHT_BANDWIDTH = 1
+    WEIGHT_PACKETLOSS = 1
+
+"""Added by Maria 7/27/2022 for setting the theoretical values for reward"""
+class TrafficType():
+    # latency values are in ms
+    LATENCY_INTENSIVE = {'lat':20, 'bw':2000000, 'plr':0.08 }
+    # BW values in BPS
+    BANDWIDTH_INTENSIVE = {'lat':40, 'bw':3000000, 'plr':0.08 }
+    PACKETLOSS_INTENSIVE = {'lat':40, 'bw':2000000, 'plr':0.02 }
 
 class Config(object):
     ################### Learning ########################
     qMode = QMode.Q_LEARNING
+    # qMode = QMode.SHORTEST_PATH
     alpha = 0.8
     gamma = 0.8
     epsilon = 0.05
@@ -55,7 +76,7 @@ class Config(object):
     measurements_for_reward = 1
 
     # duration to stay in one load level by iperf
-    duration_iperf_per_load_level_minutes = 1
+    duration_iperf_per_load_level_minutes = 5
 
     # load level
     # load_levels = [10, 10]
@@ -98,7 +119,12 @@ class Config(object):
     savingRewardCounter = 1
 
     # style of reward
-    reward_mode = RewardMode.LAT_UTILISATION
+    # reward_mode = RewardMode.ONLY_LAT
+    # reward_mode = RewardMode.LAT_UTILISATION
+    #Added By Maria July 27, 2022 for new reward function
+    reward_mode = RewardMode.COMBINED
+
+
 
     ################### Remote Controller ########################
 

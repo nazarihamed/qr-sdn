@@ -1,3 +1,4 @@
+from calendar import TUESDAY
 import time
 from collections import defaultdict
 import random
@@ -18,9 +19,16 @@ class RoutingShortestPath():
 
     def install_path(self, controller, chosenPath, first_port, last_port, ip_src, ip_dst, type):
 
+        
+
         path = self.add_ports_to_path(controller, chosenPath, first_port, last_port)
         #switches_in_paths = set().union(*chosenPath)
 
+        #Added by HAMED Jul, 26, 2022 to add plr (packet loss ratio)
+        # if type != 'arp':
+        #     controller.plr_path_firstoutport_lastinport[tuple(chosenPath)]=[chosenPath[0],
+        #     path[chosenPath[0]][1], chosenPath[-1],path[chosenPath[-1]][0]]
+        
         for node in chosenPath:
             dp = controller.dpidToDatapath[node]
             ofp = dp.ofproto
@@ -71,6 +79,7 @@ class RoutingShortestPath():
                 return [[src]]
             paths = []
             stack = [(src, [src])]
+
             while stack:
                 (node, path) = stack.pop()
                 for next in set(latency_dict[node].keys()) - set(path):
