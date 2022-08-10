@@ -80,11 +80,17 @@ def learning_module(pipe, ):
     # Added by Maria for saving average bandwidth/throughput 6/13/2022
     average_bw_list = []
     rewards_list = []
-    reward_saving_list = []
     saving_value_array = []
     previous_state = []
     previous_action = {}
     current_state = {}
+
+    # Added by Hamed Aug, 10, 2022 for calculating how many request are not met
+    reward_saving_list_lat=[]
+    reward_saving_list_bw=[]
+    reward_saving_list_plr=[]
+
+    reward_saving_list = [] # this is total_reward
 
     # Iterators
     saving_iterator = 0
@@ -211,6 +217,9 @@ def learning_module(pipe, ):
                         saving_iterator = 0
                         rewards_list.clear()
                         reward_saving_list.clear()
+                        reward_saving_list_lat.clear()
+                        reward_saving_list_bw.clear()
+                        reward_saving_list_plr.clear()
                         average_latency_list.clear()
                         # added by maria for average bandwidth 6/13/2022
                         average_bw_list.clear()
@@ -239,6 +248,11 @@ def learning_module(pipe, ):
                     temp_flows = []
                     rewards_list.clear()
                     reward_saving_list.clear()
+
+                    reward_saving_list_lat.clear()
+                    reward_saving_list_bw.clear()
+                    reward_saving_list_plr.clear()
+
                     # added by maria for average bandwidth 6/13/2022
                     average_bw_list.clear()
 
@@ -274,11 +288,17 @@ def learning_module(pipe, ):
                             temp_flows = list(current_combination.keys())
                             rewards_list.clear()
                             reward_saving_list.clear()
+
+                            reward_saving_list_lat.clear()
+                            reward_saving_list_bw.clear()
+                            reward_saving_list_plr.clear()
+
                             average_latency_list.clear()
                             # added by maria for average bandwidth 6/13/2022
                             average_bw_list.clear()
 
                         reward=0
+                        dict_reward={}
                         # calculate the rewards
                         if reward_mode.value == RewardMode.ONLY_LAT.value:
                             # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
@@ -291,27 +311,76 @@ def learning_module(pipe, ):
                         elif reward_mode.value == RewardMode.LAT_UTILISATION.value:
                             reward = get_reward_utilization(current_combination, portBWdict, latencydict)
                         
-                        #Added by HAMED July 27,2022 For new reward design
+                        #Added by HAMED Aug 10,2022 For new reward design
                         elif reward_mode.value == RewardMode.COMBINED.value:
                             
-                            rew=get_costs_of_paths_PLR(current_combination,portPDRDict)
+                            # rew=get_costs_of_paths_PLR(current_combination,portPDRDict)
                             
-                            import functions
-                            functions.logging('path',current_combination)
-                            functions.logging('plr of path',rew)
+                            # import functions
+                            # functions.logging('path',current_combination)
+                            # functions.logging('plr of path',rew)
                             
                             # latency values are in ms
-                            LATENCY_INTENSIVE = {'lat':20, 'bw':2000000, 'plr':0.08 }
+                            # LATENCY_INTENSIVE = {'lat':20, 'bw':2000000, 'plr':0.08 }
+
                             # BW values in BPS
-                            BANDWIDTH_INTENSIVE = {'lat':40, 'bw':3000000, 'plr':0.08 }
-                            PACKETLOSS_INTENSIVE = {'lat':40, 'bw':2000000, 'plr':0.02 }
+                            # BANDWIDTH_INTENSIVE = {'lat':40, 'bw':3000000, 'plr':0.08 }
+                            # PACKETLOSS_INTENSIVE = {'lat':40, 'bw':2000000, 'plr':0.02 }
+                            #BANDWIDTH_INTENSIVE
+                            trafficTypes={
+                                'embb': {
+                                    'ar_vr_game': {
+                                        'lat': 50,
+                                        'bw': 1000000,
+                                        'plr': 0.001
+                                    },
+                                    'smartphone': {
+                                        'lat': 10,
+                                        'bw': 500000,
+                                        'plr': 0.01
+                                    }
+                                },
+                                # LATENCY AND PACKET LOSS
+                                'urllc':
+                                {
+                                    'smart_transportation': {
+                                        'lat': 50,
+                                        'bw': 300000,
+                                        'plr': 0.01
+                                    },
+                                    'healthcare': {
+                                        'lat': 10,
+                                        'bw': 300000,
+                                        'plr': 0.000001
+                                    }
+                                },
+                                # ALL EQUAL
+                                'mmtc' : {
+                                    'industry4': {
+                                        'lat': 50,
+                                        'bw': 100000,
+                                        'plr': 0.001
+                                    },
+                                    'smart_city': {
+                                        'lat': 50,
+                                        'bw': 100000,
+                                        'plr': 0.01
+                                    }
+                                }
+                            }
 
-                            trafficType=[LATENCY_INTENSIVE, BANDWIDTH_INTENSIVE, PACKETLOSS_INTENSIVE]
 
-                            traffic_type=random.choice(trafficType)
-                            lat_max=traffic_type['lat']
-                            bw_min=traffic_type['bw']
-                            plr_max=traffic_type['plr']
+                            traffic_type=random.choice(list(trafficTypes.keys()))
+                            request_type=random.choice(list(trafficTypes[traffic_type]))
+                           
+                            # trafficType=[LATENCY_INTENSIVE, BANDWIDTH_INTENSIVE, PACKETLOSS_INTENSIVE]
+
+
+
+                            lat_max=trafficTypes[traffic_type][request_type]['lat']
+                            bw_min=trafficTypes[traffic_type][request_type]['bw']
+                            plr_max=trafficTypes[traffic_type][request_type]['plr']
+
 
                             lat_avg=get_average_dict(pathLATDict)
                             bw_avg=get_average_dict(pathBWDict)
@@ -328,12 +397,15 @@ def learning_module(pipe, ):
                             dict_measurement['packetloss_max']=plr_max
                             dict_measurement['packetloss_flow']=plr_avg
                             
-                            
-                            reward = RewardController.RewardController().get_total_reward(RewardMode.COMBINED.value, dict_measurement)
 
-                            print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
-                            print(f'\n\nTOTAL_REWARD: {reward}\n\n')
-                            print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+                            dict_reward = RewardController.RewardController(traffic_type).get_total_reward(RewardMode.COMBINED.value, dict_measurement)
+                            
+                            reward=dict_reward['total_reward']
+
+
+                            # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                            # print(f'\n\nTOTAL_REWARD: {dict_reward}\n\n')
+                            # print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
 
 
@@ -349,7 +421,13 @@ def learning_module(pipe, ):
                         
                         
                         rewards_list.append(reward)
+
+                        #
+
                         reward_saving_list.append(reward)
+                        reward_saving_list_lat.append(dict_reward['reward_latency'])
+                        reward_saving_list_bw.append(dict_reward['reward_bandwidth'])
+                        reward_saving_list_plr.append(dict_reward['reward_packetloss'])
 
                         # Modified by Maria to incorporate Average bandwidth list to be printed
                         #print("Average lat: {} reward: {}".format(average_latency_list, rewards_list))
@@ -438,8 +516,22 @@ def learning_module(pipe, ):
                                     save_csv_file(log_path, load_level, 'new_reward_controller', np.mean(reward_saving_list),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
                                                 iteration_split_up_flag, iterations_level)
+                                    save_csv_file(log_path, load_level, 'reward_latency', np.mean(reward_saving_list_lat),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)
+                                    save_csv_file(log_path, load_level, 'reward_bandwidth', np.mean(reward_saving_list_bw),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)
+                                    save_csv_file(log_path, load_level, 'reward_packetloss', np.mean(reward_saving_list_plr),
+                                                general_iterator // measurements_for_reward, split_up_load_levels,
+                                                iteration_split_up_flag, iterations_level)                                                                                
 
                                 reward_saving_list.clear()
+
+                                reward_saving_list_lat.clear()
+                                reward_saving_list_bw.clear()
+                                reward_saving_list_plr.clear()
+
                                 average_latency_list.clear()
                                 #Added by Maria for avg bandwidth
                                 average_bw_list.clear()

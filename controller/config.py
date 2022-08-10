@@ -45,10 +45,10 @@ class Epsilon(Enum):
     EPSILON_PACKETLOSS = 0.005
 
 """Added by Maria 7/18/2022 for setting the weights for reward"""
-class WeightReward(Enum):
-    WEIGHT_LATENCY = 1
-    WEIGHT_BANDWIDTH = 1
-    WEIGHT_PACKETLOSS = 1
+# class WeightReward(Enum):
+#     WEIGHT_LATENCY = 1
+#     WEIGHT_BANDWIDTH = 1
+#     WEIGHT_PACKETLOSS = 1
 
 """Added by Maria 7/27/2022 for setting the theoretical values for reward"""
 class TrafficType():
@@ -76,7 +76,7 @@ class Config(object):
     measurements_for_reward = 1
 
     # duration to stay in one load level by iperf
-    duration_iperf_per_load_level_minutes = 5
+    duration_iperf_per_load_level_minutes = 10
 
     # load level
     # load_levels = [10, 10]
@@ -123,6 +123,25 @@ class Config(object):
     # reward_mode = RewardMode.LAT_UTILISATION
     #Added By Maria July 27, 2022 for new reward function
     reward_mode = RewardMode.COMBINED
+    
+    WeightReward={
+        'embb': {
+            'lat': 0.2,
+            'bw': 0.6,
+            'plr': 0.2
+        },
+        'urllc': {
+            'lat': 0.45,
+            'bw': 0.1,
+            'plr': 0.45
+        },
+        'mmtc': {
+            'lat': 0.34,
+            'bw': 0.33,
+            'plr': 0.33
+        }
+    }
+
 
 
 

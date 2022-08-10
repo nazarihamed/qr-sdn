@@ -1,21 +1,20 @@
-from config import RewardMode, Epsilon, WeightReward, Config
+from config import RewardMode, Epsilon, Config
 import random
 
 class RewardController:
 
-    def __init__(self):
+    def __init__(self, traffic_type):
 
         self.reward_latency = 0
         self. reward_bandwidth = 0
         self.reward_packetloss = 0
         self.total_reward = 0
 
-        self.weight_latency = WeightReward.WEIGHT_LATENCY.value
-        self.weight_bandwidth = WeightReward.WEIGHT_BANDWIDTH.value
-        self.weight_packetloss = WeightReward.WEIGHT_PACKETLOSS.value
-
-
-       
+        
+        weight_type=Config.WeightReward[traffic_type]
+        self.weight_latency = weight_type['lat']
+        self.weight_bandwidth = weight_type['lat']
+        self.weight_packetloss = weight_type['lat']
 
 
 
@@ -43,11 +42,12 @@ class RewardController:
     @return:
     """
     def get_total_reward(self,reward_mode, dict_measurement):  
-
+        
         self.get_reward(reward_mode, dict_measurement)
         total_reward = (self.weight_latency * self.reward_latency) + (self.weight_bandwidth * self.reward_bandwidth) + (self.weight_packetloss * self.reward_packetloss)
-
-        return total_reward
+        dict_return_rewards={'total_reward': total_reward, 'reward_latency':self.reward_latency, 'reward_bandwidth': self.reward_bandwidth, 'reward_packetloss':self.reward_packetloss}
+        
+        return dict_return_rewards
 
 
 class Latency:
