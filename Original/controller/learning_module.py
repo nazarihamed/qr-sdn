@@ -300,7 +300,7 @@ def learning_module(pipe, ):
                                 previous_state = copy.deepcopy(current_state)
                                 # find out next state:
                                 if action_mode.value == ActionMode.DIRECT_CHANGE.value:
-                                    current_state = get_next_state(state_transitions, current_state, action, True)
+                                    current_state = get_next_state(state_transitions, current_state, action)
                                 else:
                                     current_state = get_next_state(state_transitions, current_state, action)
 
@@ -1045,6 +1045,12 @@ def get_action_softmax(Q, current_state, tau, actions={}, state_transitions={}):
             print("actions: {}".format(actions))
             print("total: {}".format(total))
         chosen_key = np.random.choice(actions_keys, p=probs)
+        print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+        print(f'\n\nactions: {actions}\n\n')
+        print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+        print(f'\n\probs: {probs}\n\n')
+        print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
         return json.loads(chosen_key)
     else:
         # print(actions)

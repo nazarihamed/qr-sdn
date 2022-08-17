@@ -76,7 +76,7 @@ class Config(object):
     measurements_for_reward = 1
 
     # duration to stay in one load level by iperf
-    duration_iperf_per_load_level_minutes = 10
+    duration_iperf_per_load_level_minutes = 20
 
     # load level
     # load_levels = [10, 10]
@@ -93,10 +93,10 @@ class Config(object):
     scaling_amount = 4
 
     #
-    exploration_mode = ExplorationMode.SOFTMAX
+    exploration_mode = ExplorationMode.CONSTANT_EPS
 
     # action mode
-    action_mode = ActionMode.DIRECT_CHANGE
+    action_mode = ActionMode.ONE_FLOW
 
     # if LoadLevel Test Case
     reset_Q_test_flag = True

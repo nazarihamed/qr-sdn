@@ -1,3 +1,4 @@
+import logging
 import time
 import os
 import copy
@@ -20,6 +21,7 @@ from datetime import datetime
 
 #Added by Hamed July 28, 2022 for new reward design
 from controller import RewardController
+from functions import logging
 
 
 MAX_LENGHT_DIFFSET = 2
@@ -189,6 +191,10 @@ def learning_module(pipe, ):
                 # stop_flag
                 stop_flag = elements['stopFlag']
 
+                # # Added by Hamed Aug 15 to fix the issue of copied_paths_per_flow
+                copied_paths_per_flow = copy.deepcopy(paths_per_flow)
+                
+                
                 if stop_flag:
                     save_q(Q, iterations_level)
                     print("Exited after {} steps (last load level)".format(general_iterator))
@@ -206,8 +212,17 @@ def learning_module(pipe, ):
                                                iteration_split_up_flag, iterations_level)
                             # Added by Abdullah 
                             clearing_save_file(log_path, load_level, 'average_latency_throughput', split_up_load_levels, iteration_split_up_flag,
-                                                iterations_level) 
-                        # resetting the Q-Table (restart of learning process)
+                                                iterations_level)
+
+                            # Added by HAMED Aug 15 2022 for fixing reseting steps issue
+                            clearing_save_file(log_path, load_level, 'new_reward_controller', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                            
+                            clearing_save_file(log_path, load_level, 'reward_latency', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                            
+                            clearing_save_file(log_path, load_level, 'reward_bandwidth', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                            
+                            clearing_save_file(log_path, load_level, 'reward_packetloss', split_up_load_levels, iteration_split_up_flag, iterations_level)
+
                         if reset_q_test:
                             Q, actions, state_transitions = update_Q_table({}, copied_paths_per_flow,
                                                                            merging_q_table_flag, action_mode)
@@ -224,7 +239,7 @@ def learning_module(pipe, ):
                         # added by maria for average bandwidth 6/13/2022
                         average_bw_list.clear()
                         
-
+                
                 if reset_iteration_flag:
                     save_q(Q, iterations_level)
                     iterations_level = iteration_controller
@@ -235,7 +250,17 @@ def learning_module(pipe, ):
                                        iteration_split_up_flag, iterations_level)
                     # Added by Abdullah 
                     clearing_save_file(log_path, load_level, 'average_latency_throughput', split_up_load_levels, iteration_split_up_flag,
-                                        iterations_level) 
+                                        iterations_level)
+
+                    # Added by HAMED Aug 15 2022 for fixing reseting steps issue
+                    clearing_save_file(log_path, load_level, 'new_reward_controller', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                    
+                    clearing_save_file(log_path, load_level, 'reward_latency', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                    
+                    clearing_save_file(log_path, load_level, 'reward_bandwidth', split_up_load_levels, iteration_split_up_flag, iterations_level)
+                    
+                    clearing_save_file(log_path, load_level, 'reward_packetloss', split_up_load_levels, iteration_split_up_flag, iterations_level)
+
                     # resetting the Q-Table (restart of learning process)
                     if reset_q_test:
                         print("xxxxxxxx RESETTING Q LoadLevel: {} Iteration: {} xxxxxxxxxxxxx".format(load_level,
@@ -331,12 +356,12 @@ def learning_module(pipe, ):
                                 'embb': {
                                     'ar_vr_game': {
                                         'lat': 50,
-                                        'bw': 1000000,
+                                        'bw': 10000000,
                                         'plr': 0.001
                                     },
                                     'smartphone': {
                                         'lat': 10,
-                                        'bw': 500000,
+                                        'bw': 5000000,
                                         'plr': 0.01
                                     }
                                 },
@@ -345,12 +370,12 @@ def learning_module(pipe, ):
                                 {
                                     'smart_transportation': {
                                         'lat': 50,
-                                        'bw': 300000,
+                                        'bw': 3000000,
                                         'plr': 0.01
                                     },
                                     'healthcare': {
                                         'lat': 10,
-                                        'bw': 300000,
+                                        'bw': 3000000,
                                         'plr': 0.000001
                                     }
                                 },
@@ -358,24 +383,28 @@ def learning_module(pipe, ):
                                 'mmtc' : {
                                     'industry4': {
                                         'lat': 50,
-                                        'bw': 100000,
+                                        'bw': 1000000,
                                         'plr': 0.001
                                     },
                                     'smart_city': {
                                         'lat': 50,
-                                        'bw': 100000,
+                                        'bw': 1000000,
                                         'plr': 0.01
                                     }
                                 }
                             }
 
-
                             traffic_type=random.choice(list(trafficTypes.keys()))
                             request_type=random.choice(list(trafficTypes[traffic_type]))
                            
+                            # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                            # print(f'traffic_type: {traffic_type}\n')
+                            # print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')                            
+                            # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
+                            # print(f'request_type: {request_type}\n')
+                            # print('<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+
                             # trafficType=[LATENCY_INTENSIVE, BANDWIDTH_INTENSIVE, PACKETLOSS_INTENSIVE]
-
-
 
                             lat_max=trafficTypes[traffic_type][request_type]['lat']
                             bw_min=trafficTypes[traffic_type][request_type]['bw']
@@ -398,7 +427,9 @@ def learning_module(pipe, ):
                             dict_measurement['packetloss_flow']=plr_avg
                             
 
+                            
                             dict_reward = RewardController.RewardController(traffic_type).get_total_reward(RewardMode.COMBINED.value, dict_measurement)
+                            
                             
                             reward=dict_reward['total_reward']
 
@@ -422,11 +453,14 @@ def learning_module(pipe, ):
                         
                         rewards_list.append(reward)
 
-                        #
+                        #Added by HAMED Aug 8
 
                         reward_saving_list.append(reward)
+                        
                         reward_saving_list_lat.append(dict_reward['reward_latency'])
+                        
                         reward_saving_list_bw.append(dict_reward['reward_bandwidth'])
+                        
                         reward_saving_list_plr.append(dict_reward['reward_packetloss'])
 
                         # Modified by Maria to incorporate Average bandwidth list to be printed

@@ -684,7 +684,11 @@ class ControllerMain(simple_switch_13.SimpleSwitch13):
                             self.temp_bw_map_ports[dpid_rec][port_no]['ts'] = ts_now
                             self.temp_bw_map_ports[dpid_rec][port_no]['bytes'] = bytes_now
                             # bw (bytes/sec)
-                            bw = (byte_diff*8) / ts_diff
+                            #Added By HAMED to fix the issue of zero ts_diff
+                            if ts_diff:
+                                bw = (byte_diff*8) / ts_diff
+                            else:
+                                bw = self.bandwith_port_dict[dpid_rec][port_no] 
                             self.bandwith_port_dict[dpid_rec][port_no] = bw
 
 

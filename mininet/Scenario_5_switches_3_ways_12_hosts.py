@@ -139,12 +139,12 @@ def four_switches_network():
     # linkArray.append(net.addLink(s4, s5, delay='30ms',use_tbf = True, bw=5, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
 
 
-    linkArray.append(net.addLink(s1, s2, delay='3ms',use_tbf = True, bw=20, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-    linkArray.append(net.addLink(s2, s5, delay='3ms',use_tbf = True, bw=20, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-    linkArray.append(net.addLink(s1, s3, delay='3ms',use_tbf = True, bw=10, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-    linkArray.append(net.addLink(s3, s5, delay='3ms',use_tbf = True, bw=10, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-    linkArray.append(net.addLink(s1, s4, delay='10ms',use_tbf = True, bw=5, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
-    linkArray.append(net.addLink(s4, s5, delay='10ms',use_tbf = True, bw=5, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s1, s2, delay='3ms',use_tbf = True, bw=4, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s2, s5, delay='3ms',use_tbf = True, bw=4, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s1, s3, delay='3ms',use_tbf = True, bw=3, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s3, s5, delay='3ms',use_tbf = True, bw=3, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s1, s4, delay='10ms',use_tbf = True, bw=2, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
+    linkArray.append(net.addLink(s4, s5, delay='10ms',use_tbf = True, bw=2, max_queue_size=queue_lenght, latency_ms = 10000000, burst = 1000000))
 
 
 
@@ -205,9 +205,9 @@ def four_switches_network():
                 write_in_File(fileName, logs, loadLevel, iteration_split_up_flag, iteration)
             # send load level
             print("(Re)starting iperf -- loadLevel:  {}".format(loadLevel))
-            start_new_thread(startIperf, (h11, h51, 2.75, 5001, timeTotal, loadLevel))
-            start_new_thread(startIperf, (h12, h52, 1.75, 5001, timeTotal, loadLevel))
-            start_new_thread(startIperf, (h13, h53, 1.75, 5001, timeTotal, loadLevel))
+            start_new_thread(startIperf, (h11, h51, 3.75, 5001, timeTotal, loadLevel))
+            start_new_thread(startIperf, (h12, h52, 2.75, 5001, timeTotal, loadLevel))
+            start_new_thread(startIperf, (h13, h53, 2.75, 5001, timeTotal, loadLevel))
             # start_new_thread(startIperf, (h14, h54, 1.75, 5001, timeTotal, loadLevel)) # change
             # start_new_thread(startIperf, (h15, h55, 1.75, 5001, timeTotal, loadLevel)) # change
             # start_new_thread(startIperf, (h16, h56, 1.75, 5001, timeTotal, loadLevel)) # change

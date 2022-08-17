@@ -1,5 +1,6 @@
 from config import RewardMode, Epsilon, Config
 import random
+from functions import logging
 
 class RewardController:
 
@@ -9,6 +10,7 @@ class RewardController:
         self. reward_bandwidth = 0
         self.reward_packetloss = 0
         self.total_reward = 0
+        self.type_of_traffic= traffic_type
 
         
         weight_type=Config.WeightReward[traffic_type]
@@ -45,7 +47,9 @@ class RewardController:
         
         self.get_reward(reward_mode, dict_measurement)
         total_reward = (self.weight_latency * self.reward_latency) + (self.weight_bandwidth * self.reward_bandwidth) + (self.weight_packetloss * self.reward_packetloss)
+        # total_reward = (self.weight_latency * self.reward_latency) + (self.weight_packetloss * self.reward_packetloss)
         dict_return_rewards={'total_reward': total_reward, 'reward_latency':self.reward_latency, 'reward_bandwidth': self.reward_bandwidth, 'reward_packetloss':self.reward_packetloss}
+        
         
         return dict_return_rewards
 
@@ -75,6 +79,8 @@ class Bandwidth:
         self.epsilon = Epsilon.EPSILON_BANDWIDTH
 
     def calculateReward(self):
+        logging("self.b_flow", self.b_flow)
+        logging("self.b_min", self.b_min)
         if self.b_flow >= 2*(self.b_min):
            return 1
         elif self.b_min < self.b_flow < 2*(self.b_min):
