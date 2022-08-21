@@ -121,6 +121,7 @@ class Config(object):
     # style of reward
     # reward_mode = RewardMode.ONLY_LAT
     # reward_mode = RewardMode.LAT_UTILISATION
+    
     #Added By Maria July 27, 2022 for new reward function
     reward_mode = RewardMode.COMBINED
     
