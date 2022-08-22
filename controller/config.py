@@ -76,7 +76,7 @@ class Config(object):
     measurements_for_reward = 1
 
     # duration to stay in one load level by iperf
-    duration_iperf_per_load_level_minutes = 20
+    duration_iperf_per_load_level_minutes = 60
 
     # load level
     # load_levels = [10, 10]

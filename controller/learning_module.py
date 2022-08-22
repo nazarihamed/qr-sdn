@@ -324,6 +324,7 @@ def learning_module(pipe, ):
 
                         reward=0
                         dict_reward={}
+                        traffic_type=''
                         # calculate the rewards
                         if reward_mode.value == RewardMode.ONLY_LAT.value:
                             # print('LOG >>>>>>>>>>>>>>>>>>>>>>>')
@@ -550,15 +551,15 @@ def learning_module(pipe, ):
                                     save_csv_file(log_path, load_level, 'new_reward_controller', np.mean(reward_saving_list),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
                                                 iteration_split_up_flag, iterations_level)
-                                    save_csv_file(log_path, load_level, 'reward_latency', np.mean(reward_saving_list_lat),
+                                    save_csv_file_with_traffic_type(log_path, load_level, 'reward_latency', np.mean(reward_saving_list_lat),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
-                                                iteration_split_up_flag, iterations_level)
-                                    save_csv_file(log_path, load_level, 'reward_bandwidth', np.mean(reward_saving_list_bw),
+                                                iteration_split_up_flag, iterations_level,traffic_type)
+                                    save_csv_file_with_traffic_type(log_path, load_level, 'reward_bandwidth', np.mean(reward_saving_list_bw),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
-                                                iteration_split_up_flag, iterations_level)
-                                    save_csv_file(log_path, load_level, 'reward_packetloss', np.mean(reward_saving_list_plr),
+                                                iteration_split_up_flag, iterations_level, traffic_type)
+                                    save_csv_file_with_traffic_type(log_path, load_level, 'reward_packetloss', np.mean(reward_saving_list_plr),
                                                 general_iterator // measurements_for_reward, split_up_load_levels,
-                                                iteration_split_up_flag, iterations_level)                                                                                
+                                                iteration_split_up_flag, iterations_level, traffic_type)                                                                                
 
                                 reward_saving_list.clear()
 
@@ -1453,6 +1454,33 @@ def save_csv_file(log_path, load_level, file_name, reward, timepoint, split_up_l
     with open('{}/{}.csv'.format(dir_str, file_name), 'a') as csvfile:
         file_writer = csv.writer(csvfile, delimiter=',')
         file_writer.writerow([timepoint, reward, time.time()])
+
+# Added by Hamed Aug 19 2022 to enable saving traffic type in the file
+def save_csv_file_with_traffic_type(log_path, load_level, file_name, reward, timepoint, split_up_load_levels, iterations_split_upflag,
+                  iteration, trafficType):
+    """
+    saving the reward or latency in a csv file
+    @param log_path:
+    @param load_level:
+    @param file_name:
+    @param reward:
+    @param timepoint:
+    @param split_up_load_levels:
+    @param iterations_split_upflag:
+    @param iteration: number iteration
+    """
+    if split_up_load_levels:
+        load_level_str = '/' + str(load_level)
+    else:
+        load_level_str = ''
+    if iterations_split_upflag:
+        iteration_level_str = '/' + str(iteration)
+    else:
+        iteration_level_str = ''
+    dir_str = '{}{}{}'.format(log_path, iteration_level_str, load_level_str)
+    with open('{}/{}.csv'.format(dir_str, file_name), 'a') as csvfile:
+        file_writer = csv.writer(csvfile, delimiter=',')
+        file_writer.writerow([timepoint, reward, trafficType, time.time()])
 
 # Added by Maria - Overload method to enable saving both latency and throughput reward in a single file
 def save_csv_file_overload(log_path, load_level, file_name, reward1, reward2, timepoint, split_up_load_levels, iterations_split_upflag,
